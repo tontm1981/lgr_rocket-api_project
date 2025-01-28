@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    shm_size: 256mb
+    volumes:
+      - localpg:/var/lib/postgresql/data
+    ports:
+      - 5431:5432
+    environment:
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_USER: lgr
+      POSTGRES_DB: lgr
+
+volumes:
+  localpg:
+    driver: local
