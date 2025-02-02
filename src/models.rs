@@ -5,7 +5,6 @@ use thiserror::Error;
 pub struct Question {
     pub title: String,
     pub description: String,
-    pub created_at: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
@@ -25,7 +24,6 @@ pub struct QuestionId {
 pub struct Answer {
     pub question_uuid: String,
     pub content: String,
-    pub created_at: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -45,6 +43,7 @@ pub struct AnswerId {
 pub enum DBError {
     #[error("Invalid UUID provided: {0}")]
     InvalidUUID(String),
+    #[error("Unexpected database error")]
     Other(
         #[from] Box<dyn std::error::Error + Send + Sync>,
     ),

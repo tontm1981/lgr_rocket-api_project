@@ -180,7 +180,7 @@ mod answers_tests {
     #[sqlx::test]
     async fn delete_answer_should_succeed(pool: PgPool) -> Result<(), String> {
         let question_doa = QuestionsDaoImpl::new(pool.clone());
-        let answer_doa = AnswersDaoImpl::new(pool);
+        let answer_doa = AnswersDaoImpl::new(pool.clone());
 
         let question = question_doa
             .create_question(Question {
@@ -188,7 +188,7 @@ mod answers_tests {
                 description: "test description".to_owned(),
             })
             .await
-            .map_err(|e| format!("{:?}", e))?;
+            .map_err(|e| format!("Error creating question:\n\t{:?}", e))?;
 
         let result = answer_doa
             .create_answer(Answer {
@@ -196,17 +196,17 @@ mod answers_tests {
                 content: "test content".to_owned(),
             })
             .await
-            .map_err(|e| format!("{:?}", e))?;
+            .map_err(|e| format!("Error creating answer:\n\t{:?}", e))?;
 
         answer_doa
             .delete_answer(result.answer_uuid)
             .await
-            .map_err(|e| format!("{:?}", e))?;
+            .map_err(|e| format!("Error deleting answer:\n\t{:?}", e))?;
 
         let results = answer_doa
             .get_answers(question.question_uuid.clone())
             .await
-            .map_err(|e| format!("{:?}", e))?;
+            .map_err(|e| format!("Error getting answers:\n\t{:?}", e))?;
 
         if results.len() != 0 {
             return Err("Answer was not deleted".to_owned());
@@ -426,11 +426,11 @@ mod questions_tests {
                 description: "test description".to_owned(),
             })
             .await
-            .map_err(|e| format!("{:?}", e))?;
+            .map_err(|e| format!("Error creating question:\n\t{:?}", e))?;
 
         doa.delete_question(result.question_uuid)
             .await
-            .map_err(|e| format!("{:?}", e))?;
+            .map_err(|e| format!("Error deleting question:\n\t{:?}", e))?;
 
         let results = doa.get_questions().await.map_err(|e| format!("{:?}", e))?;
 

@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use rocket::http::ext::IntoCollection;
 use sqlx::PgPool;
 
 use crate::models::{postgres_error_codes, Answer, AnswerDetail, DBError};
@@ -17,7 +16,7 @@ pub struct AnswersDaoImpl {
 
 impl AnswersDaoImpl {
     pub fn new(db: PgPool) -> Self {
-        todo!() // return an instance of AnswersDaoImpl
+        Self { db }
     }
 }
 
@@ -30,8 +29,9 @@ impl AnswersDao for AnswersDaoImpl {
         //
         // If `parse_str` returns an error, map the error to a `DBError::InvalidUUID` error
         // and early return from this function.
-        let uuid = sqlx::types::Uuid::parse_str(&answer.question_uuid)
-            .map_err(|e| DBError::Other(Box::new(e)))?;
+        let uuid = sqlx::types::Uuid::parse_str(&answer.question_uuid).map_err(|e| {
+            DBError::InvalidUUID(format!("Error parsing question ID: {} due to follow error: {:?}", answer.question_uuid, e))
+        })?;
 
         // Make a database query to insert a new answer.
         // Here is the SQL query:
@@ -51,35 +51,34 @@ impl AnswersDao for AnswersDaoImpl {
             )
             .fetch_one(&self.db)
             .await
-            .map_err(|e| DBError::Other(Box::new(e)))?;
+            .map_err(|e: sqlx::Error| match e {
+                sqlx::Error::Database(e) => {
+                    if let Some(code) = e.code() {
+                        if code.eq(postgres_error_codes::FOREIGN_KEY_VIOLATION) {
+                            return DBError::InvalidUUID(format!("Invalid question ID: {}", answer.question_uuid));
+                        }
+                    }
+                    DBError::Other(Box::new(e))
+                }
+                e => DBError::Other(Box::new(e)),
+            })?;
 
         // Populate the AnswerDetail fields using `record`.
         Ok(AnswerDetail {
             answer_uuid: record.answer_uuid.to_string(),
             question_uuid: answer.question_uuid.to_string(),
             content: answer.content.to_string(),
-            created_at: answer.created_at.to_string(),
+            created_at: "now".to_string(),
         })
     }
 
     async fn delete_answer(&self, answer_uuid: String) -> Result<(), DBError> {
-        // Use the `sqlx::types::Uuid::parse_str` method to parse `answer_uuid` into a `Uuid` type.
-        // parse_str docs: https://docs.rs/sqlx/latest/sqlx/types/struct.Uuid.html#method.parse_str
-        //
-        // If `parse_str` returns an error, map the error to a `DBError::InvalidUUID` error
-        // and early return from this function.
-        let uuid = sqlx::types::Uuid::parse_str(&answer_uuid).map_err(|e| DBError::Other(Box::new(e)))?;
+        let uuid = sqlx::types::Uuid::parse_str(&answer_uuid).map_err(|e| {
+            DBError::InvalidUUID(format!("Error parsing question ID: {} due to follow error: {:?}", answer_uuid, e))
+        })?;
 
-        // TODO: Make a database query to delete an answer given the answer uuid.
-        // Here is the SQL query:
-        // ```
-        // DELETE FROM answers WHERE answer_uuid = $1
-        // ```
-        // If executing the query results in an error, map that error
-        // to a `DBError::Other` error and early return from this function.
-
-        let result = sqlx::query!("DELETE FROM public.answers WHERE answer_uuid = $1", uuid)
-            .fetch_one(&self.db)
+        sqlx::query!("DELETE FROM public.answers WHERE answer_uuid = $1", uuid)
+            .execute(&self.db)
             .await
             .map_err(|e| DBError::Other(Box::new(e)))?;
 
@@ -92,7 +91,9 @@ impl AnswersDao for AnswersDaoImpl {
         //
         // If `parse_str` returns an error, map the error to a `DBError::InvalidUUID` error
         // and early return from this function.
-        let uuid = sqlx::types::Uuid::parse_str(&question_uuid).map_err(|e| DBError::Other(Box::new(e)))?;
+        let uuid = sqlx::types::Uuid::parse_str(&question_uuid).map_err(|e| {
+            DBError::InvalidUUID(format!("Error parsing question ID: {} due to follow error: {:?}", question_uuid, e))
+        })?;
 
         // Make a database query to get all answers associated with a question uuid.
         // Here is the SQL query:
@@ -119,10 +120,9 @@ impl AnswersDao for AnswersDaoImpl {
                     answer_uuid,
                     content,
                     created_at,
-                };
+                }
             })
-            .into_collection()
-            .to_vec();
+            .collect();
 
         Ok(answers)
     }

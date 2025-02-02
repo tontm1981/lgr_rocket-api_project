@@ -34,7 +34,7 @@ async fn rocket() -> _ {
     // Use the `unwrap` or `expect` method to handle errors. This is just some test code to
     // make sure we can connect to the database.
     // let recs = todo!();
-    let recs = sqlx::query!("SELECT * FROM public.questions")
+    let _recs = sqlx::query!("SELECT * FROM public.questions")
         .fetch_all(&pool)
         .await
         .expect("Unable to fetch records");
