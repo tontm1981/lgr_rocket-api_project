@@ -4,6 +4,7 @@ extern crate rocket;
 mod cors;
 mod handlers;
 mod models;
+mod persistance;
 
 use dotenvy::dotenv;
 use sqlx::postgres::PgPoolOptions;
@@ -38,8 +39,6 @@ async fn rocket() -> _ {
         .await
         .expect("Unable to fetch records");
 
-    info!(" ****************** Question Records ****************** ");
-    info!("{recs:?}");
     rocket::build()
         .mount(
             "/",
