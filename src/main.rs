@@ -1,6 +1,12 @@
 #[macro_use]
 extern crate rocket;
 
+#[macro_use]
+extern crate log;
+
+#[macro_use]
+extern crate pretty_env_logger;
+
 mod cors;
 mod handlers;
 mod models;
@@ -10,34 +16,22 @@ use dotenvy::dotenv;
 use sqlx::postgres::PgPoolOptions;
 use cors::*;
 use handlers::*;
+use crate::persistance::answers_dao::AnswersDaoImpl;
+use crate::persistance::questions_dao::QuestionsDaoImpl;
 
 #[launch]
 async fn rocket() -> _ {
-    // TODO: Initialize pretty_env_logger
     pretty_env_logger::init();
-    // TODO: Initialize dotenv
     dotenv().expect("Unable to initialize dotenv");
 
-    // Create a new PgPoolOptions instance with a maximum of 5 connections.
-    // Use dotenv to get the database url.
-    // Use the `unwrap` or `expect` method instead of handling errors. If an
-    // error occurs at this stage the server should be terminated.
-    // See examples on GitHub page: https://github.com/launchbadge/sqlx
-    // let pool = todo!();
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect("postgres://lgr:123456@localhost:5431/lgr")
         .await
         .expect("Unable to connect to database");
 
-    // Using slqx, execute a SQL query that selects all questions from the questions table.
-    // Use the `unwrap` or `expect` method to handle errors. This is just some test code to
-    // make sure we can connect to the database.
-    // let recs = todo!();
-    let _recs = sqlx::query!("SELECT * FROM public.questions")
-        .fetch_all(&pool)
-        .await
-        .expect("Unable to fetch records");
+    let questions_dao = QuestionsDaoImpl::new(pool.clone());
+    let answers_dao = AnswersDaoImpl::new(pool);
 
     rocket::build()
         .mount(
@@ -52,4 +46,7 @@ async fn rocket() -> _ {
             ],
         )
         .attach(CORS)
+        // The manage method allows us to add state to the state managed by this instance of Rocket. Then we can use this state in the handlers.
+        .manage(questions_dao) // pass in `questions_dao` as a boxed trait object. hint: you must cast `questions_dao` to a trait object.
+        .manage(answers_dao) // pass in `answers_dao` as a boxed trait object. hint: you must cast `answers_dao` to a trait object.
 }
